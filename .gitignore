@@ -1,0 +1,4 @@
+.venv/
+.vscode/
+Models/*/training/
+Models/*/output/
