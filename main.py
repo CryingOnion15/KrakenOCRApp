@@ -1,7 +1,7 @@
 import tkinter as tk;
-from tkinter import ttk
-from Pages.ModelAddTrainingData import ModelAddTrainingDataTab
-from Pages.ModelCreation import ModelCreationTab
+from tkinter import ttk;
+from Pages.ModelAddTrainingData import ModelAddTrainingDataTab;
+from Pages.ModelCreation import ModelCreationTab;
 
 root = tk.Tk()
 root.title("Recipe Reader")
@@ -15,7 +15,7 @@ trainingTab = ModelAddTrainingDataTab(mainWindow, models=modelCreationTab.GetMod
 
 # Add Tabs
 mainWindow.add(modelCreationTab, text="Model Add/Select")
-mainWindow.add(trainingTab, text="Training")
+mainWindow.add(trainingTab, text="Add Training Data")
 
 mainWindow.select(modelCreationTab)
 

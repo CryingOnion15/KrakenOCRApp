@@ -79,18 +79,19 @@ class ModelAddTrainingDataTab(tk.Frame):
                 if(fileExt == ".pdf"):
                     #Open PDF and turn each page into png.
                     doc = PDF.open(filePath)
-                    page = 0
+                    pageNumber = 0
                     for page in doc:
                         # Convert to PNG
-                        png_bytes = page.get_pixmap().tobytes("png")
+                        png_bytes = page.get_pixmap(dpi=600).tobytes("png")
                         img = Image.open(BytesIO(png_bytes))
 
                         # Binarize the image and save it to the training folder.
+                        trainingFolder = "./Models/" + self.modelSelection.GetSelectedText() + "/training/"
+                        imgName = fileName + "_" + str(pageNumber) + ".png"
+
                         binImg = binarization.nlbin(img)
-                        print(fileName)
-                        print(self.modelSelection.GetSelectedText() + "/training/" + fileName + "_" + page)
-                        binImg.save(self.modelSelection.GetSelectedText() + "/training/" + fileName + "_" + page)
-                        page += 1
+                        binImg.save(trainingFolder + imgName)
+                        pageNumber += 1
                         print("Saved page " + str(page) + " of " + fileName)
                     doc.close()
             print("Data Saved")
