@@ -8,6 +8,8 @@ from Widgets.Loading.ProgressBarLoadingFrame import ProgressBarLoadingFrame
 from tkinter import filedialog
 from pathlib import Path
 from kraken import binarization
+from kraken import pageseg
+from kraken.serialization import serialize
 from io import BytesIO
 
 class ModelAddTrainingDataTab(tk.Frame):
@@ -123,8 +125,6 @@ class ModelAddTrainingDataTab(tk.Frame):
         processThread.daemon = True
         processThread.start()
 
-
-
     def processFiles(self):
         for index in range(len(self.filePaths)):
             filePath = self.filePaths[index]
@@ -136,9 +136,20 @@ class ModelAddTrainingDataTab(tk.Frame):
                 png = Image.open(filePath)
                 self.loadingFrame.updateStep(0, f"Binarizing: {fileName}")
                 binImg = binarization.nlbin(png)
-                self.loadingFrame.updateStep(.5, f"Binarized: {fileName}")
-                binImg.save(self.modelSelection.GetSelectedText() + "/training/" + fileName)
-                self.loadingFrame.updateStep(.5, f"Uploaded: {fileName}")
+                self.loadingFrame.updateStep(.25, f"Binarized: {fileName}")
+                binImg.save("./Models/" + self.modelSelection.GetSelectedText() + "/training/" + fileName)
+                
+
+                # Segment Binary Image.
+                self.loadingFrame.updateStep(.25, f"Creating Segmentation of: {fileName}")
+                segData = pageseg.segment(binImg)
+
+                # Serialize and Save Segmentation.
+                self.loadingFrame.updateStep(.5, f"Serialzing Segmentation of: {fileName}")
+                with open(f"./Models/{self.modelSelection.GetSelectedText()}/output/{fileName}_seg.xml", "w", encoding="utf-8") as file:
+                    file.write(serialize(segData))
+
+                self.loadingFrame.updateStep(0, f"Training Data created for: {fileName}")
 
                 self.currentFile += 1
                 self.loadingFrame.updateInstructionText(f"Processing file {self.currentFile + 1} of {self.fileUploadMax}")
@@ -157,11 +168,22 @@ class ModelAddTrainingDataTab(tk.Frame):
                     trainingFolder = "./Models/" + self.modelSelection.GetSelectedText() + "/training/"
                     imgName = fileName + "_" + str(pageNumber) + ".png"
 
-                    self.loadingFrame.updateStep(.5, f"Binarizing page {pageNumber + 1}")
+                    self.loadingFrame.updateStep(0, f"Binarizing page {pageNumber + 1}")
                     binImg = binarization.nlbin(img)
                     self.loadingFrame.updateStep(.25, f"Binarized page {pageNumber + 1}")
                     binImg.save(trainingFolder + imgName)
-                    self.loadingFrame.updateStep(.25, f"Uploaded page {pageNumber + 1} of {fileName}")
+
+                    # Segment Binary Image.
+                    self.loadingFrame.updateStep(.25, f"Creating Segmentation of page: {pageNumber + 1}")
+                    segData = pageseg.segment(binImg)
+
+                    # Serialize and Save Segmentation.
+                    self.loadingFrame.updateStep(.5, f"Serialzing Segmentation of page: {pageNumber + 1}")
+                    with open(f"./Models/{self.modelSelection.GetSelectedText()}/output/{fileName}_{pageNumber + 1}_seg.xml", "w", encoding="utf-8") as file:
+                        file.write(serialize(segData))
+                    
+                    self.loadingFrame.updateStep(0, f"Training Data created for: {fileName} Page {pageNumber + 1}")
+
                     pageNumber += 1
                     self.currentFile += 1
                     self.loadingFrame.updateInstructionText(f"Processing file {self.currentFile + 1} of {self.fileUploadMax}")
@@ -169,3 +191,24 @@ class ModelAddTrainingDataTab(tk.Frame):
 
         self.after(0, self.resetFrameData)
         self.after(50, self.showAddDataFrame)
+
+    def createTrainingDataFromImg(self, img, fileName):
+        self.loadingFrame.updateStep(0, f"Binarizing: {fileName}")
+        binImg = binarization.nlbin(img)
+        self.loadingFrame.updateStep(.25, f"Binarized: {fileName}")
+        binImg.save(f"./Models/{self.modelSelection.GetSelectedText()}/training/{fileName}")
+        
+
+        # Segment Binary Image.
+        self.loadingFrame.updateStep(.25, f"Creating Segmentation of: {fileName}")
+        segData = pageseg.segment(binImg)
+
+        # Serialize and Save Segmentation.
+        self.loadingFrame.updateStep(.5, f"Serialzing Segmentation of: {fileName}")
+        with open(f"./Models/{self.modelSelection.GetSelectedText()}/output/{fileName}_seg.xml", "w", encoding="utf-8") as file:
+            file.write(serialize(segData))
+
+        self.loadingFrame.updateStep(0, f"Training Data created for: {fileName}")
+
+        self.currentFile += 1
+        self.loadingFrame.updateInstructionText(f"Processing file {self.currentFile + 1} of {self.fileUploadMax}")
