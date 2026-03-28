@@ -28,6 +28,8 @@ class ModelAddTrainingDataTab(tk.Frame):
         self.rowconfigure(1, weight=10)
         self.rowconfigure(2, weight=1)
 
+        self.initializeAllFrameData()
+
         self.showAddDataFrame()
 
         self.pack(fill='both', expand=True)
@@ -38,35 +40,54 @@ class ModelAddTrainingDataTab(tk.Frame):
         self.fileUploadMax = 0
         self.currentFile = 0
 
-    def showLoadingFrame(self, maximum, instruction):
+    def initializeAllFrameData(self):
+        # Frame Data for loading
         self.loadingFrame = ProgressBarLoadingFrame(self, loadText="Binarizing and uploading all training images.")
+
+        #Frame Data for Add Data frame
+        self.modelSelection = ScrollField(self, supportSelection=True, viewBG="#505050", labelBG="#B1B1B1")
+        self.uploadBttn = tk.Button(self, text="Upload Files", font=('Arial', 18))
+        self.fileNameDisplay = ScrollField(self)
+        self.dpiFrame = tk.Frame(self)
+        self.dpiLabel = tk.Label(self.dpiFrame, text="DPI:", font=('Arial', 12))
+        self.dpiValue = ttk.Spinbox(self.dpiFrame, from_=30, to=600)
+        self.saveDataBttn = tk.Button(self, text="Save Training Data", font=('Arial', 12))
+
+
+    def showLoadingFrame(self, maximum, instruction):
+        #Hide Data Frame
+        self.modelSelection.grid_forget()
+        self.uploadBttn.grid_forget()
+        self.fileNameDisplay.grid_forget()
+        self.dpiFrame.grid_forget()
+        self.dpiLabel.pack_forget()
+        self.dpiValue.pack_forget()
+        self.saveDataBttn.grid_forget()
+
+        #Show Loading Frame
         self.loadingFrame.grid(row=0, column=0, columnspan=3, rowspan=3, sticky="nswe", padx= 10, pady=10)
         self.loadingFrame.intializeProgress(maximum, instruction)
         
 
     def showAddDataFrame(self):
+        #Hide Loading Frame
+        self.loadingFrame.grid_forget()
+
         #Column 1
-        self.modelSelection = ScrollField(self, supportSelection=True, viewBG="#505050", labelBG="#B1B1B1")
         self.modelSelection.grid(row=0, column=0, rowspan=3, sticky="nswe", pady=10, padx=3)
         self.modelSelection.setLabels(self.modelNames)
 
         #Column 2
-        self.uploadBttn = tk.Button(self, text="Upload Files", font=('Arial', 18))
         self.uploadBttn.grid(row=0, column=1, columnspan=2, sticky="we")
         self.uploadBttn.bind("<Button-1>", self.uploadFiles)
-
-        self.fileNameDisplay = ScrollField(self)
         self.fileNameDisplay.grid(row=1, column=1, columnspan=2, sticky="nswe")
 
-        #DPI and save button.
-        self.dpiFrame = tk.Frame(self)
-        self.dpiLabel = tk.Label(self.dpiFrame, text="DPI:", font=('Arial', 12))
+        #Add DPI setter.
         self.dpiLabel.pack(side="left")
-        self.dpiValue = ttk.Spinbox(self.dpiFrame, from_=30, to=600)
         self.dpiValue.pack(side="left", padx=10)
         self.dpiFrame.grid(row=2, column=1, sticky="news", padx=10)
 
-        self.saveDataBttn = tk.Button(self, text="Save Training Data", font=('Arial', 12))
+        # Add Save Data button.
         self.saveDataBttn.grid(row=2, column=2, sticky="e" , padx=10)
         self.saveDataBttn.bind("<Button-1>", self.saveData)
 
@@ -103,9 +124,9 @@ class ModelAddTrainingDataTab(tk.Frame):
             filePath = self.filePaths[index]
             fileExt = Path(filePath).suffix
             
-            if(fileExt == ".png"):
+            if(fileExt.lower() == ".png"):
                 count += 1
-            elif(fileExt == ".pdf"):
+            elif(fileExt.lower() == ".pdf"):
                 doc = PDF.open(filePath)
                 count += doc.page_count
                 doc.close()
@@ -126,19 +147,22 @@ class ModelAddTrainingDataTab(tk.Frame):
         processThread.start()
 
     def processFiles(self):
+
+        trainingFolder = f"./Models/{self.modelSelection.GetSelectedText()}/training/"
+        outputFolder = f"./Models/{self.modelSelection.GetSelectedText()}/output/"
+
         for index in range(len(self.filePaths)):
             filePath = self.filePaths[index]
             fileExt = Path(filePath).suffix
             fileName = self.fileNames[index]
 
-            if(fileExt == ".png"):
+            if(fileExt.lower() == ".png"):
                 #Binarize the image and save it to the training folder.
                 png = Image.open(filePath)
                 self.loadingFrame.updateStep(0, f"Binarizing: {fileName}")
                 binImg = binarization.nlbin(png)
                 self.loadingFrame.updateStep(.25, f"Binarized: {fileName}")
-                binImg.save("./Models/" + self.modelSelection.GetSelectedText() + "/training/" + fileName)
-                
+                binImg.save(f"{trainingFolder}{fileName}.png")
 
                 # Segment Binary Image.
                 self.loadingFrame.updateStep(.25, f"Creating Segmentation of: {fileName}")
@@ -146,7 +170,7 @@ class ModelAddTrainingDataTab(tk.Frame):
 
                 # Serialize and Save Segmentation.
                 self.loadingFrame.updateStep(.5, f"Serialzing Segmentation of: {fileName}")
-                with open(f"./Models/{self.modelSelection.GetSelectedText()}/output/{fileName}_seg.xml", "w", encoding="utf-8") as file:
+                with open(f"{outputFolder}{fileName}_seg.xml", "w", encoding="utf-8") as file:
                     file.write(serialize(segData))
 
                 self.loadingFrame.updateStep(0, f"Training Data created for: {fileName}")
@@ -154,7 +178,7 @@ class ModelAddTrainingDataTab(tk.Frame):
                 self.currentFile += 1
                 self.loadingFrame.updateInstructionText(f"Processing file {self.currentFile + 1} of {self.fileUploadMax}")
 
-            elif(fileExt == ".pdf"):
+            elif(fileExt.lower() == ".pdf"):
                 #Open PDF and turn each page into png.
                 doc = PDF.open(filePath)
                 pageNumber = 0
@@ -165,7 +189,6 @@ class ModelAddTrainingDataTab(tk.Frame):
                     img = Image.open(BytesIO(png_bytes))
 
                     # Binarize the image and save it to the training folder.
-                    trainingFolder = "./Models/" + self.modelSelection.GetSelectedText() + "/training/"
                     imgName = fileName + "_" + str(pageNumber) + ".png"
 
                     self.loadingFrame.updateStep(0, f"Binarizing page {pageNumber + 1}")
@@ -179,7 +202,7 @@ class ModelAddTrainingDataTab(tk.Frame):
 
                     # Serialize and Save Segmentation.
                     self.loadingFrame.updateStep(.5, f"Serialzing Segmentation of page: {pageNumber + 1}")
-                    with open(f"./Models/{self.modelSelection.GetSelectedText()}/output/{fileName}_{pageNumber + 1}_seg.xml", "w", encoding="utf-8") as file:
+                    with open(f"{outputFolder}{fileName}_{pageNumber + 1}_seg.xml", "w", encoding="utf-8") as file:
                         file.write(serialize(segData))
                     
                     self.loadingFrame.updateStep(0, f"Training Data created for: {fileName} Page {pageNumber + 1}")

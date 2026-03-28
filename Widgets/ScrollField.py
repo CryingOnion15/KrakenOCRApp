@@ -45,6 +45,9 @@ class ScrollField(tk.Canvas):
             else:
                 self.selected = index
                 self.nameLabels[index].config(bg=self.selectedColor)
+            
+            if self.clickCallback:
+                self.clickCallback(self.selected)
 
     def GetSelectedText(self):
         if self.supportSelection and not self.selected == -1:
