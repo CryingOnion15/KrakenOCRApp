@@ -1,6 +1,9 @@
 import tkinter as tk
 from Widgets.ScrollField import ScrollField
 from pathlib import Path
+from PIL import Image, ImageTk
+from lxml import etree
+from kraken.lib import xml
 from kraken.containers import BaselineLine
 from kraken.containers import BBoxLine
 
@@ -19,6 +22,15 @@ class ModelSegementationAdjustmentTab(tk.Frame):
         self.imageFiles = []
         self.segmentList = []
         self.activeSegmentation = None
+        self.enableDrag = False
+        self.dragX = 0
+        self.dragY = 0
+        self.minScale = 0.1
+        self.maxScale = 2.0
+        self.currentScale = 1.0
+        self.imgID = 0
+        self.selectedImg = None
+        self.segementationCoords = []
 
         # Create UI
         self.columnconfigure(0, weight=1)
@@ -49,15 +61,24 @@ class ModelSegementationAdjustmentTab(tk.Frame):
             for file in self.outputPath.iterdir():
                 self.outputData.append(str(file))
 
-        self.outputSelection.setLabels(self.segmentList)
+            self.activeSegmentation = xml.XMLPage(self.outputData[selectedIndex])
+            self.initializeSegementationBoxes(self.activeSegmentation)
 
     def updateActiveSegmentation(self, selectedIndex):
         if(selectedIndex >= 0):
-            self.selectedImg = tk.PhotoImage(file=self.imageFiles[selectedIndex])
-            self.segmentationCanvas.create_image(0,0, image=self.selectedImg)
+            self.originalImg = Image.open(self.imageFiles[selectedIndex])
+            self.selectedImg = ImageTk.PhotoImage(self.originalImg)
+            self.imgID = self.segmentationCanvas.create_image(0,0, anchor="nw", image=self.selectedImg)
+
+            self.setScale(1.0)
 
             #Draw segmentation etc.
+            self.initializeSegementationBoxes()
 
+    def initializeSegementationBoxes(self, segmentationData):
+        if(not segmentationData == None):
+            # Initialize segmentation boxes based on the active segmentation data
+            pass
 
     def initializeAllFrameData(self):
         #Frame Data for Add Data frame
@@ -66,7 +87,14 @@ class ModelSegementationAdjustmentTab(tk.Frame):
 
         #Image Display
         self.imageFrame = tk.Frame(self)
-        self.segmentationCanvas = tk.Canvas(self.imageFrame)      
+        self.segmentationCanvas = tk.Canvas(self.imageFrame)
+        self.setScale(1.0)
+
+        #Event Bindings
+        self.segmentationCanvas.bind("<ButtonPress-1>", self.onCanvasClick)
+        self.segmentationCanvas.bind("<B1-Motion>", self.onMouseMove)
+        self.segmentationCanvas.bind("<ButtonRelease-1>", self.onCanvasRelease)
+        self.segmentationCanvas.bind("<MouseWheel>", self.onZoom)      
 
     def showFrame(self):
         #Column 1
@@ -79,6 +107,51 @@ class ModelSegementationAdjustmentTab(tk.Frame):
         #Column 2
         self.imageFrame.grid(column=1, row=0, columnspan=2, rowspan=3, sticky="news", padx= 3, pady = 3)
         self.segmentationCanvas.pack(fill="both", expand=True)
+
+    def onCanvasClick(self, event):
+        self.enableDrag = True
+        self.dragX = event.x
+        self.dragY = event.y
+
+    def onMouseMove(self, event):
+        if(self.enableDrag):
+            dx = event.x - self.dragX
+            dy = event.y - self.dragY
+
+            self.segmentationCanvas.move("all", dx, dy)
+
+            self.dragX = event.x
+            self.dragY = event.y
+
+    def onCanvasRelease(self, event):
+        self.enableDrag = False
+    
+    def onZoom(self, event):
+        if event.delta > 0:
+            self.currentScale += 0.1
+        else:
+            self.currentScale -= 0.1
+
+        self.setScale(self.currentScale, (event.x, event.y))
+
+    def setScale(self, newScale, origin=(0,0)):
+        
+        if(newScale < self.maxScale and newScale > self.minScale):
+            scaleFactor = 1 - (self.currentScale - newScale)
+            #self.currentScale = max(self.minScale, min(self.maxScale, newScale))
+
+            x = self.segmentationCanvas.canvasx(origin[0]) 
+            y = self.segmentationCanvas.canvasy(origin[1])
+            self.segmentationCanvas.scale("all", x, y, scaleFactor, scaleFactor)
+
+            if(not self.selectedImg == None):
+                w = int(self.originalImg.width * self.currentScale)
+                h = int(self.originalImg.height * self.currentScale)
+
+                resized = self.originalImg.resize((w, h), Image.BILINEAR)
+                self.selectedImg = ImageTk.PhotoImage(resized)
+
+                self.segmentationCanvas.itemconfig(self.imgID, image=self.selectedImg)
 
 
 # 🧠 Step 1: Treat the Canvas like a Camera (not a static image)

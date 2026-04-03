@@ -167,6 +167,7 @@ class ModelAddTrainingDataTab(tk.Frame):
                 # Segment Binary Image.
                 self.loadingFrame.updateStep(.25, f"Creating Segmentation of: {fileName}")
                 segData = pageseg.segment(binImg)
+                segData.metadata["fileName"] = f"{trainingFolder}{fileName}.png"
 
                 # Serialize and Save Segmentation.
                 self.loadingFrame.updateStep(.5, f"Serialzing Segmentation of: {fileName}")
@@ -199,6 +200,7 @@ class ModelAddTrainingDataTab(tk.Frame):
                     # Segment Binary Image.
                     self.loadingFrame.updateStep(.25, f"Creating Segmentation of page: {pageNumber + 1}")
                     segData = pageseg.segment(binImg)
+                    segData.metadata["fileName"] = f"{trainingFolder}{imgName}"
 
                     # Serialize and Save Segmentation.
                     self.loadingFrame.updateStep(.5, f"Serialzing Segmentation of page: {pageNumber + 1}")
@@ -225,6 +227,7 @@ class ModelAddTrainingDataTab(tk.Frame):
         # Segment Binary Image.
         self.loadingFrame.updateStep(.25, f"Creating Segmentation of: {fileName}")
         segData = pageseg.segment(binImg)
+        segData.metadata["fileName"] = f"./Models/{self.modelSelection.GetSelectedText()}/training/{fileName}.png"
 
         # Serialize and Save Segmentation.
         self.loadingFrame.updateStep(.5, f"Serialzing Segmentation of: {fileName}")
